@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "28000055515",
+    "firebase_url": "https://gatesystem-7ae87-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "gatesystem-7ae87",
+    "storage_bucket": "gatesystem-7ae87.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:28000055515:android:eeb98bb1b862b8d0299cfe",
+        "android_client_info": {
+          "package_name": "com.example.iot_licenseplatedetection"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrOajwQn1OGNdiIl9_7ZV3r6y3D_oXGP8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
