@@ -32,4 +32,23 @@
         app:layout_constraintTop_toBottomOf="@id/btn_off"
         tools:text="ABC"/>
 
+    <Button
+        android:id="@+id/btn_cam"
+        app:layout_constraintTop_toBottomOf="@id/tv_distance"
+        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="cam"/>
+
+    <ImageView
+        android:id="@+id/plat"
+        android:layout_width="match_parent"
+        android:layout_height="300dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:src="@tools:sample/avatars"
+        app:layout_constraintTop_toBottomOf="@id/btn_cam"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>
