@@ -22,7 +22,7 @@ interface ApiService {
     fun redLEDListener(
         @Query("token") token : String,
         @Query("V3") value : Int
-    )
+    ) : Call<Void>
 
     @GET("update")
     fun servoListener(

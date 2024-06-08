@@ -21,8 +21,11 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,6 +44,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.File
+import java.util.Locale
 import java.util.Properties
 
 class MainActivity : AppCompatActivity() {
@@ -48,8 +52,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var database : DatabaseReference
     private var currentImageUri: Uri? = null
     private var photoFile : File? = null
+    private lateinit var plateRef: DatabaseReference
+    private var isWaiting = false
 
-    val plateNumbers = listOf("e4387sk", "e6457ca", "c")
+    private val registeredPlates = mutableListOf<String>()
 
     private var tokenBlynk = BuildConfig.TOKEN_BLYNK
     private var tokenReader = BuildConfig.TOKEN_READER
@@ -77,6 +83,11 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        database = FirebaseDatabase.getInstance().getReference("Sensor")
+        plateRef = FirebaseDatabase.getInstance().getReference("plates")
+
+        fetchRegisteredPlates()
+
         if (!allPermissionsGranted()) {
             requestPermissionLauncher.launch(REQUIRED_PERMISSION)
         }
@@ -94,36 +105,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun databaseListener() {
+        if (isWaiting) {
+            return
+        }
         database = FirebaseDatabase.getInstance().getReference("Sensor")
         val distanceListener = object : ValueEventListener {
+            @RequiresApi(Build.VERSION_CODES.Q)
             override fun onDataChange(snapshot: DataSnapshot) {
                 val distance = snapshot.child("distance").value
                 val distanceInt = distance.toString().toDouble().toInt()
                 binding.tvDistance.text = "$distanceInt cm"
-                if(distance.toString().toDouble() < 2000) {
-                    val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, 90)
-                    client.enqueue(object : Callback<Void> {
-                        override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                            Log.d("Testt", "Berhasil")
-                            Log.d("Testt", "Respons: ${response.toString()}")
-                        }
-
-                        override fun onFailure(call: Call<Void>, t: Throwable) {
-                            // Tangani kesalahan di sini
-                        }
-                    })
-                }else{
-                    val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, 180)
-                    client.enqueue(object : Callback<Void> {
-                        override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                            Log.d("Testt", "Berhasil")
-                            Log.d("Testt", "Respons: ${response.toString()}")
-                        }
-
-                        override fun onFailure(call: Call<Void>, t: Throwable) {
-                            // Tangani kesalahan di sini
-                        }
-                    })
+                if(distance.toString().toDouble() < 100) {
+                    startCameraX()
                 }
             }
 
@@ -183,7 +176,7 @@ class MainActivity : AppCompatActivity() {
                         detectedPlate.append("-")
                     }else{
                         result.data.results.forEach{resultItem ->
-                            detectedPlate.append("${resultItem.plate}\n")
+                            detectedPlate.append("${resultItem.plate.toUpperCase()}\n")
                         }
                         Log.d("Testt", detectedPlate.toString())
                     }
@@ -202,7 +195,7 @@ class MainActivity : AppCompatActivity() {
                     }else{
                         result.data.results.forEach { resultItem ->
                             resultItem.candidates.forEach { candidate ->
-                                candidatePlate.append("${candidate.plate}\n")
+                                candidatePlate.append("${candidate.plate.toUpperCase()}\n")
                             }
                         }
                     }
@@ -268,25 +261,122 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun checkPlateNumber(result: LicensePlateResponse) {
+    private fun checkPlateNumber(result: LicensePlateResponse) {
+        if (isWaiting) {
+            return
+        }
+        var plateFound = false
         result.results.forEach { resultItem ->
-            if (plateNumbers.contains(resultItem.plate) || resultItem.candidates.any { plateNumbers.contains(it.plate) }) {
-                Log.d("PlateNumber", "Plate number found in the candidates list.")
-                val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, 1)
-                client.enqueue(object : Callback<Void> {
-                    override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                        Log.d("Testt", "Berhasil")
-                        Log.d("Testt", "Respons: ${response.toString()}")
-                    }
+            val detectedPlate = resultItem.plate.toUpperCase(Locale.ROOT)
+            if (registeredPlates.contains(detectedPlate) || resultItem.candidates.any {
+                    registeredPlates.contains(it.plate.toUpperCase(Locale.ROOT)) }) {
+                Log.d("PlateNumber", "Plate number found in the registered plates list.")
+                plateFound = true
 
-                    override fun onFailure(call: Call<Void>, t: Throwable) {
-                        // Tangani kesalahan di sini
-                    }
-                })
-                return
+                greenLEDListener(1)
+                servoListener(90)
+
+                isWaiting = true
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    greenLEDListener(0)
+                    servoListener(180)
+
+                    isWaiting = false
+                }, 5000)
             }
         }
-        Log.d("PlateNumber", "Plate number not found.")
+
+        if (plateFound) {
+            showAlertDialog("Plate Number Found")
+        } else {
+            showAlertDialog("Plate Number Not Found")
+            Log.d("PlateNumber", "Plate number not found.")
+
+            redLEDListener(1)
+            isWaiting = true
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                redLEDListener(0)
+                isWaiting = false
+            }, 5000)
+        }
+    }
+
+    private fun fetchRegisteredPlates() {
+        plateRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                registeredPlates.clear()
+                for (plateSnapshot in snapshot.children) {
+                    plateSnapshot.key?.let { plateNumber ->
+                        registeredPlates.add(plateNumber)
+                    }
+                }
+                Log.d("RegisteredPlates", "Plates: $registeredPlates")
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("RegisteredPlates", "Failed to read plates: ${error.message}")
+            }
+        })
+    }
+
+    private fun showAlertDialog(message: String) {
+        val builder = AlertDialog.Builder(this)
+        builder.setMessage(message)
+        builder.setCancelable(false)
+
+        val dialog = builder.create()
+        dialog.show()
+
+        isWaiting = true
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            dialog.dismiss()
+            isWaiting = false
+        }, 5000)
+    }
+
+    private fun servoListener(value : Int){ // 180 close, 90 open
+        val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, value)
+        client.enqueue(object : Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                Log.d("Testt", "Berhasil")
+                Log.d("Testt", "Respons: ${response.toString()}")
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
+                // Tangani kesalahan di sini
+            }
+        })
+    }
+
+    private fun greenLEDListener(value : Int){ // 1 on, 0 off
+        val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, value)
+        client.enqueue(object : Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                Log.d("Testt", "Berhasil")
+                Log.d("Testt", "Respons: ${response}")
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
+                Log.e("Testt", "Gagal: ${t.message}")
+            }
+        })
+    }
+
+    private fun redLEDListener(value : Int){ // 1 on, 0 off
+        val client = ApiConfig.getApiSevice().redLEDListener(tokenBlynk, value)
+        client.enqueue(object : Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                Log.d("Testt", "Berhasil")
+                Log.d("Testt", "Respons: ${response}")
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
+                Log.e("Testt", "Gagal: ${t.message}")
+            }
+        })
     }
 
     companion object {

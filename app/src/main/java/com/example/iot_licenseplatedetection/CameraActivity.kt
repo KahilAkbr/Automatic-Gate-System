@@ -3,6 +3,8 @@ package com.example.iot_licenseplatedetection
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.OrientationEventListener
 import android.view.Surface
@@ -54,6 +56,10 @@ class CameraActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         startCamera()
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            takePhoto()
+        }, 2000)
 
         binding.switchCamera.setOnClickListener {
             cameraSelector = if (cameraSelector.equals(CameraSelector.DEFAULT_BACK_CAMERA)) CameraSelector.DEFAULT_FRONT_CAMERA
