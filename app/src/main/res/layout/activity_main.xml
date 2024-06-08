@@ -27,7 +27,7 @@
         app:layout_constraintTop_toBottomOf="@id/tv_title"
         app:layout_constraintStart_toStartOf="parent"
         android:text="Sensor Ultrasonik"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:fontFamily="@font/poppins_regular"
         android:textSize="16sp"
         android:layout_marginStart="16dp"/>
@@ -78,7 +78,7 @@
         android:layout_width="match_parent"
         android:layout_height="250dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:scaleType="centerCrop"
         app:layout_constraintEnd_toEndOf="parent"
@@ -94,11 +94,11 @@
         app:layout_constraintTop_toBottomOf="@id/plat"
         app:layout_constraintBottom_toTopOf="@id/btn_add_plate"
         app:layout_constraintVertical_bias="0"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="6dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp">
+            android:layout_height="wrap_content">
 
             <ProgressBar
                 android:id="@+id/progress_bar"

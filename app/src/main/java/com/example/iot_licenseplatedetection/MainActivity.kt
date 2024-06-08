@@ -85,6 +85,10 @@ class MainActivity : AppCompatActivity() {
             startCameraX()
         }
 
+        binding.btnAddPlate.setOnClickListener{
+            startActivity(Intent(this, RegisterPlateActivity::class.java))
+        }
+
         readData()
         databaseListener()
     }
