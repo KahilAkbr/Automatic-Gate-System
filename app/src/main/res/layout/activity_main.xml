@@ -7,65 +7,176 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/btn_on"
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAlignment="center"
+        android:text="Automatic Gate System"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="on"/>
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:textSize="24sp"/>
 
-    <Button
-        android:id="@+id/btn_off"
-        app:layout_constraintTop_toBottomOf="@id/btn_on"
-        app:layout_constraintEnd_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/tv_ultrasonic"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="off"/>
+        app:layout_constraintTop_toBottomOf="@id/tv_title"
+        app:layout_constraintStart_toStartOf="parent"
+        android:text="Sensor Ultrasonik"
+        android:layout_marginTop="16dp"
+        android:fontFamily="@font/poppins_regular"
+        android:textSize="16sp"
+        android:layout_marginStart="16dp"/>
 
     <TextView
         android:id="@+id/tv_distance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/btn_off"
-        tools:text="ABC"/>
+        app:layout_constraintTop_toBottomOf="@id/tv_ultrasonic"
+        tools:text="ABC"
+        android:fontFamily="@font/poppins_regular"
+        android:textSize="12sp"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="16dp"/>
+
+    <Button
+        android:id="@+id/btn_add_plate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@id/btn_cam"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:text="Tambah Plat"
+        android:backgroundTint="@color/primary_orange"
+        android:textColor="@color/white"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:textSize="16sp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="4dp"/>
 
     <Button
         android:id="@+id/btn_cam"
-        app:layout_constraintTop_toBottomOf="@id/tv_distance"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="cam"/>
+        android:text="Camera"
+        android:backgroundTint="@color/primary_orange"
+        android:textColor="@color/white"
+        android:fontFamily="@font/poppins_semi_bold"
+        android:textSize="16sp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"/>
 
     <ImageView
         android:id="@+id/plat"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
+        android:layout_height="250dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="16dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_distance"
+        app:srcCompat="@drawable/ic_place_holder" />
+
+    <ScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:layout_marginTop="12dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:src="@tools:sample/avatars"
-        app:layout_constraintTop_toBottomOf="@id/btn_cam"/>
-
-    <ProgressBar
-        android:id="@+id/progress_bar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
         app:layout_constraintTop_toBottomOf="@id/plat"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:visibility="gone"/>
+        app:layout_constraintBottom_toTopOf="@id/btn_add_plate"
+        app:layout_constraintVertical_bias="0"
+        android:layout_marginBottom="4dp">
 
-    <TextView
-        android:id="@+id/tv_plate"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/plat"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp">
+
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/detected_plate_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
+                android:text="Plat yang Terdeteksi"
+                android:fontFamily="@font/poppins_regular"
+                android:textSize="16sp"/>
+
+            <TextView
+                android:id="@+id/tv_plate_score"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="@id/tv_plate"
+                app:layout_constraintStart_toEndOf="@id/tv_plate"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/poppins_regular"
+                tools:text="ABC"/>
+
+            <TextView
+                android:id="@+id/tv_plate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toBottomOf="@id/detected_plate_title"
+                app:layout_constraintVertical_bias="0"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
+                android:text="-"
+                android:fontFamily="@font/poppins_regular"/>
+
+            <TextView
+                android:id="@+id/tv_plate_candidate_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toBottomOf="@id/tv_plate"
+                android:text="Kandidat Plat Terdeteksi"
+                android:fontFamily="@font/poppins_regular"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="4dp"
+                android:textSize="16sp"/>
+
+            <TextView
+                android:id="@+id/tv_candidate_plate_score"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                app:layout_constraintTop_toTopOf="@id/tv_candidate_plate"
+                app:layout_constraintStart_toEndOf="@id/tv_candidate_plate"
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/poppins_regular"
+                tools:text="ABC"/>
+
+            <TextView
+                android:id="@+id/tv_candidate_plate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toBottomOf="@id/tv_plate_candidate_title"
+                app:layout_constraintVertical_bias="0"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_marginStart="16dp"
+                android:text="-"
+                android:fontFamily="@font/poppins_regular"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </ScrollView>
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

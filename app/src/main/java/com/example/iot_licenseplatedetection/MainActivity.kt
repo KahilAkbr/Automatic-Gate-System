@@ -85,33 +85,6 @@ class MainActivity : AppCompatActivity() {
             startCameraX()
         }
 
-        binding.btnOn.setOnClickListener {
-            val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, 1)
-            client.enqueue(object : Callback<Void> {
-                override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                    Log.d("Testt", "Berhasil")
-                    Log.d("Testt", "Respons: ${response.toString()}")
-                }
-
-                override fun onFailure(call: Call<Void>, t: Throwable) {
-                    // Tangani kesalahan di sini
-                }
-            })
-        }
-
-        binding.btnOff.setOnClickListener {
-            val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, 0)
-            client.enqueue(object : Callback<Void> {
-                override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                    Log.d("Testt", "Berhasil")
-                    Log.d("Testt", "Respons: ${response.toString()}")
-                }
-
-                override fun onFailure(call: Call<Void>, t: Throwable) {
-
-                }
-            })
-        }
         readData()
         databaseListener()
     }
@@ -121,7 +94,8 @@ class MainActivity : AppCompatActivity() {
         val distanceListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val distance = snapshot.child("distance").value
-                binding.tvDistance.text = distance.toString()
+                val distanceInt = distance.toString().toDouble().toInt()
+                binding.tvDistance.text = "$distanceInt cm"
                 if(distance.toString().toDouble() < 2000) {
                     val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, 90)
                     client.enqueue(object : Callback<Void> {
@@ -162,7 +136,7 @@ class MainActivity : AppCompatActivity() {
         database.child("distance").get().addOnSuccessListener {
             if(it.exists()){
                 val distance : Double = it.value.toString().toDouble()
-                binding.tvDistance.text = distance.toString()
+                binding.tvDistance.text = "${distance.toInt()} cm"
             }
         }
     }
@@ -200,17 +174,49 @@ class MainActivity : AppCompatActivity() {
                 is Result.Success -> {
                     binding.progressBar.visibility = View.GONE
                     Log.d("Testt", "Photo sent successfully: ${result.data}")
-                    val sb = StringBuilder()
-                    result.data.results.forEach { resultItem ->
-                        sb.append("Plate: ${resultItem.plate}\n")
-                        sb.append("Score: ${resultItem.score}\n")
-                        sb.append("Candidates:\n")
-                        resultItem.candidates.forEach { candidate ->
-                            sb.append("  Plate: ${candidate.plate}, Score: ${candidate.score}\n")
+                    val detectedPlate = StringBuilder()
+                    if(result.data.results.isEmpty()){
+                        detectedPlate.append("-")
+                    }else{
+                        result.data.results.forEach{resultItem ->
+                            detectedPlate.append("${resultItem.plate}\n")
                         }
-                        sb.append("\n")
+                        Log.d("Testt", detectedPlate.toString())
                     }
-                    binding.tvPlate.text = sb.toString()
+
+                    val detectedPlateScoreText = StringBuilder()
+                    result.data.results.forEach{resultsItem ->
+                        val detectedPlateScore = resultsItem.score as Double
+                        val scorePercentage = detectedPlateScore * 100
+                        val formattedScore = String.format("%.1f%%", scorePercentage)
+                        detectedPlateScoreText.append("${formattedScore}\n")
+                    }
+
+                    val candidatePlate = StringBuilder()
+                    if(result.data.results.isEmpty()){
+                        candidatePlate.append("-")
+                    }else{
+                        result.data.results.forEach { resultItem ->
+                            resultItem.candidates.forEach { candidate ->
+                                candidatePlate.append("${candidate.plate}\n")
+                            }
+                        }
+                    }
+
+                    val candidatePlateScoreText = StringBuilder()
+                    result.data.results.forEach { resultItem ->
+                        resultItem.candidates.forEach { candidate ->
+                            val detectedPlateScore = candidate.score as Double
+                            val scorePercentage = detectedPlateScore * 100
+                            val formattedScore = String.format("%.1f%%", scorePercentage)
+                            candidatePlateScoreText.append("${formattedScore}\n")
+                        }
+                    }
+
+                    binding.tvPlate.text = detectedPlate.toString()
+                    binding.tvPlateScore.text = detectedPlateScoreText.toString()
+                    binding.tvCandidatePlate.text = candidatePlate.toString()
+                    binding.tvCandidatePlateScore.text = candidatePlateScoreText.toString()
                     checkPlateNumber(result.data)
                 }
                 is Result.Error -> {
@@ -221,8 +227,6 @@ class MainActivity : AppCompatActivity() {
                 else -> {}
             }
         })
-
-
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
