@@ -18,10 +18,26 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
+import androidx.lifecycle.liveData
+import com.example.iot_licenseplatedetection.api.ApiConfig
+import com.example.iot_licenseplatedetection.api.ApiService
+import com.example.iot_licenseplatedetection.api.response.LicensePlateResponse
 import com.example.iot_licenseplatedetection.databinding.ActivityCameraBinding
-import org.tensorflow.lite.task.gms.vision.detector.Detection
+import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
+import java.io.File
 import java.text.NumberFormat
 import java.util.concurrent.Executors
 
@@ -29,11 +45,13 @@ class CameraActivity : AppCompatActivity() {
     private var cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
     private lateinit var binding: ActivityCameraBinding
     private var imageCapture: ImageCapture? = null
-    private lateinit var objectDetectorHelper: ObjectDetectorHelper
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityCameraBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        startCamera()
 
         binding.switchCamera.setOnClickListener {
             cameraSelector = if (cameraSelector.equals(CameraSelector.DEFAULT_BACK_CAMERA)) CameraSelector.DEFAULT_FRONT_CAMERA
@@ -54,68 +72,32 @@ class CameraActivity : AppCompatActivity() {
     }
 
     private fun startCamera() {
-        objectDetectorHelper = ObjectDetectorHelper(
-            context = this,
-            detectorListener = object : ObjectDetectorHelper.DetectorListener {
-                override fun onError(error: String) {
-                    runOnUiThread {
-                        Toast.makeText(this@CameraActivity, error, Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-                override fun onResults(
-                    results: MutableList<Detection>?,
-                    inferenceTime: Long,
-                    imageHeight: Int,
-                    imageWidth: Int
-                ) {
-                    runOnUiThread {
-                        results?.let { it ->
-                            if (it.isNotEmpty() && it[0].categories.isNotEmpty()) {
-                                Log.d("Bjir", it.toString())
-
-                                for (result in results) {
-                                    val displayResult = "${result.categories[0].label} " + NumberFormat.getPercentInstance()
-                                        .format(result.categories[0].score).trim()
-                                    Log.d("Bjir", displayResult)
-                                }
-                            } else {
-                                Log.d("Results", "No results found")
-                            }
-                        }
-                    }
-                }
-
-            }
-        )
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
         cameraProviderFuture.addListener({
-
-            val resolutionSelector = ResolutionSelector.Builder()
-                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
-                .build()
-            val imageAnalyzer = ImageAnalysis.Builder().setResolutionSelector(resolutionSelector)
-                .setTargetRotation(binding.viewFinder.display.rotation)
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888).build()
-            Log.d("BJIR", "1")
-            imageAnalyzer.setAnalyzer(Executors.newSingleThreadExecutor()) { image ->
-                Log.d("BJIR", "2")
-                objectDetectorHelper.detectObject(image)
-            }
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
-            }
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+                }
+
+            imageCapture = ImageCapture.Builder().build()
+
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageAnalyzer
+                    this,
+                    cameraSelector,
+                    preview,
+                    imageCapture
                 )
+
             } catch (exc: Exception) {
                 Toast.makeText(
-                    this@CameraActivity, "Gagal memunculkan kamera.", Toast.LENGTH_SHORT
+                    this@CameraActivity,
+                    "Gagal memunculkan kamera.",
+                    Toast.LENGTH_SHORT
                 ).show()
                 Log.e(TAG, "startCamera: ${exc.message}")
             }
@@ -124,18 +106,24 @@ class CameraActivity : AppCompatActivity() {
 
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
+
         val photoFile = createCustomTempFile(application)
+
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val intent = Intent()
-                    intent.putExtra(EXTRA_CAMERAX_IMAGE, output.savedUri.toString())
+                    val savedUri = photoFile.toUri()
+                    val intent = Intent().apply {
+                        putExtra(EXTRA_CAMERAX_IMAGE, savedUri.toString())
+                    }
                     setResult(CAMERAX_RESULT, intent)
                     finish()
                 }
+
                 override fun onError(exc: ImageCaptureException) {
                     Toast.makeText(
                         this@CameraActivity,
@@ -149,7 +137,8 @@ class CameraActivity : AppCompatActivity() {
     }
 
     private fun hideSystemUI() {
-        @Suppress("DEPRECATION") if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.hide(WindowInsets.Type.statusBars())
         } else {
             window.setFlags(
@@ -159,6 +148,8 @@ class CameraActivity : AppCompatActivity() {
         }
         supportActionBar?.hide()
     }
+
+
 
     companion object {
         private const val TAG = "CameraActivity"

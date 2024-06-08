@@ -22,15 +22,37 @@ import retrofit2.Callback
 import retrofit2.Response
 import android.Manifest
 import android.content.Intent
+import android.os.Build
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.core.net.toUri
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
+import androidx.lifecycle.liveData
 import com.example.iot_licenseplatedetection.CameraActivity.Companion.CAMERAX_RESULT
+import com.example.iot_licenseplatedetection.api.response.LicensePlateResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
+import java.io.File
+import java.util.Properties
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var database : DatabaseReference
     private var currentImageUri: Uri? = null
+    private var photoFile : File? = null
+
+    val plateNumbers = listOf("e4387sk", "e6457ca", "c")
+
+    private var tokenBlynk = BuildConfig.TOKEN_BLYNK
+    private var tokenReader = BuildConfig.TOKEN_READER
 
     private val requestPermissionLauncher =
         registerForActivityResult(
@@ -49,6 +71,7 @@ class MainActivity : AppCompatActivity() {
             REQUIRED_PERMISSION
         ) == PackageManager.PERMISSION_GRANTED
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -63,11 +86,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnOn.setOnClickListener {
-            val client = ApiConfig.getApiSevice().greenLEDListener("2MnrK2xNpTAoKrSQaJXY8I6X6jaeurv7", 1)
+            val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, 1)
             client.enqueue(object : Callback<Void> {
                 override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                    Log.d("BJIR", "Berhasil")
-                    Log.d("BJIR", "Respons: ${response.toString()}")
+                    Log.d("Testt", "Berhasil")
+                    Log.d("Testt", "Respons: ${response.toString()}")
                 }
 
                 override fun onFailure(call: Call<Void>, t: Throwable) {
@@ -77,15 +100,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnOff.setOnClickListener {
-            val client = ApiConfig.getApiSevice().greenLEDListener("2MnrK2xNpTAoKrSQaJXY8I6X6jaeurv7", 0)
+            val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, 0)
             client.enqueue(object : Callback<Void> {
                 override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                    Log.d("BJIR", "Berhasil")
-                    Log.d("BJIR", "Respons: ${response.toString()}")
+                    Log.d("Testt", "Berhasil")
+                    Log.d("Testt", "Respons: ${response.toString()}")
                 }
 
                 override fun onFailure(call: Call<Void>, t: Throwable) {
-                    // Tangani kesalahan di sini
+
                 }
             })
         }
@@ -100,11 +123,11 @@ class MainActivity : AppCompatActivity() {
                 val distance = snapshot.child("distance").value
                 binding.tvDistance.text = distance.toString()
                 if(distance.toString().toDouble() < 2000) {
-                    val client = ApiConfig.getApiSevice().servoListener("2MnrK2xNpTAoKrSQaJXY8I6X6jaeurv7", 90)
+                    val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, 90)
                     client.enqueue(object : Callback<Void> {
                         override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                            Log.d("BJIR", "Berhasil")
-                            Log.d("BJIR", "Respons: ${response.toString()}")
+                            Log.d("Testt", "Berhasil")
+                            Log.d("Testt", "Respons: ${response.toString()}")
                         }
 
                         override fun onFailure(call: Call<Void>, t: Throwable) {
@@ -112,11 +135,11 @@ class MainActivity : AppCompatActivity() {
                         }
                     })
                 }else{
-                    val client = ApiConfig.getApiSevice().servoListener("2MnrK2xNpTAoKrSQaJXY8I6X6jaeurv7", 180)
+                    val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, 180)
                     client.enqueue(object : Callback<Void> {
                         override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                            Log.d("BJIR", "Berhasil")
-                            Log.d("BJIR", "Respons: ${response.toString()}")
+                            Log.d("Testt", "Berhasil")
+                            Log.d("Testt", "Respons: ${response.toString()}")
                         }
 
                         override fun onFailure(call: Call<Void>, t: Throwable) {
@@ -144,11 +167,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun startCameraX() {
         val intent = Intent(this, CameraActivity::class.java)
         launcherIntentCameraX.launch(intent)
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private val launcherIntentCameraX = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
@@ -158,14 +183,106 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun showImage() {
-        currentImageUri?.let {
-            Log.d("Image URI", "showImage: $it")
-            binding.plat.setImageURI(it)
+        currentImageUri?.let {uri ->
+            photoFile = uriToFile(uri, this)
+            Log.d("Image URI", "showImage: $uri")
+            binding.plat.setImageURI(uri)
+        }
+
+        sendPhoto(photoFile, "id").observe(this@MainActivity, Observer { result ->
+            when (result) {
+                is Result.Loading -> {
+                    binding.progressBar.visibility = View.VISIBLE
+                    Log.d("Testt", "Sending photo...")
+                }
+                is Result.Success -> {
+                    binding.progressBar.visibility = View.GONE
+                    Log.d("Testt", "Photo sent successfully: ${result.data}")
+                    val sb = StringBuilder()
+                    result.data.results.forEach { resultItem ->
+                        sb.append("Plate: ${resultItem.plate}\n")
+                        sb.append("Score: ${resultItem.score}\n")
+                        sb.append("Candidates:\n")
+                        resultItem.candidates.forEach { candidate ->
+                            sb.append("  Plate: ${candidate.plate}, Score: ${candidate.score}\n")
+                        }
+                        sb.append("\n")
+                    }
+                    binding.tvPlate.text = sb.toString()
+                    checkPlateNumber(result.data)
+                }
+                is Result.Error -> {
+                    binding.progressBar.visibility = View.GONE
+                    Log.e(TAG, "Error sending photo: ${result.error}")
+                }
+
+                else -> {}
+            }
+        })
+
+
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun sendPhoto(
+        file : File?,
+        regions : String
+    ) : LiveData<Result<LicensePlateResponse>> = liveData{
+        emit(Result.Loading)
+        try {
+            Log.d(TAG, "Preparing to send photo...")
+            val apiService = ApiConfig.getLicensePlateApiService(tokenReader)
+            if (file != null) {
+                val files = file.reduceFileImage()
+                val region = regions.toRequestBody("text/plain".toMediaType())
+                val imageFile = files.asRequestBody("image/jpeg".toMediaType())
+                val imageMultipart: MultipartBody.Part = MultipartBody.Part.createFormData(
+                    "upload",
+                    files.name,
+                    imageFile
+                )
+                Log.d(TAG, "Sending request to API...")
+                val response = withContext(Dispatchers.IO) {
+                    apiService.sendLicensePlate(imageMultipart, region)
+                }
+                Log.d(TAG, "API response received: $response")
+                emit(Result.Success(response))
+            } else {
+                Log.e(TAG, "Image file is null")
+                emit(Result.Error("Image Kosong"))
+            }
+        }catch (e : HttpException){
+            emit(Result.Error(e.message.toString()))
+        }catch (e : Exception){
+            emit(Result.Error(e.message.toString()))
         }
     }
 
+    fun checkPlateNumber(result: LicensePlateResponse) {
+        result.results.forEach { resultItem ->
+            if (plateNumbers.contains(resultItem.plate) || resultItem.candidates.any { plateNumbers.contains(it.plate) }) {
+                Log.d("PlateNumber", "Plate number found in the candidates list.")
+                val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, 1)
+                client.enqueue(object : Callback<Void> {
+                    override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                        Log.d("Testt", "Berhasil")
+                        Log.d("Testt", "Respons: ${response.toString()}")
+                    }
+
+                    override fun onFailure(call: Call<Void>, t: Throwable) {
+                        // Tangani kesalahan di sini
+                    }
+                })
+                return
+            }
+        }
+        Log.d("PlateNumber", "Plate number not found.")
+    }
+
     companion object {
+        private const val TAG = "Testt"
         private const val REQUIRED_PERMISSION = Manifest.permission.CAMERA
     }
 }

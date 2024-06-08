@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -15,7 +17,20 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "BASE_URL", "\"https://fra1.blynk.cloud/external/api/\"")
+        val properties = Properties()
+
+        val localPropertiesFile = project.rootProject.file("local.properties")
+
+        properties.load(localPropertiesFile.inputStream())
+        val baseUrl :String = properties.getProperty("BASE_URL")
+        val baseUrlPlateReader:String = properties.getProperty("BASE_URL_PLATE_READER")
+        val tokenBlynk : String = properties.getProperty("TOKEN_BLYNK")
+        val tokenReader : String = properties.getProperty("TOKEN_READER")
+
+        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
+        buildConfigField("String", "BASE_URL_PLATE_READER", "\"$baseUrlPlateReader\"")
+        buildConfigField("String", "TOKEN_BLYNK", "\"$tokenBlynk\"")
+        buildConfigField("String", "TOKEN_READER", "\"$tokenReader\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -38,7 +53,6 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
-        mlModelBinding = true
     }
 }
 
@@ -71,10 +85,4 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
-
-    implementation("org.tensorflow:tensorflow-lite-metadata:0.4.4")
-    implementation("org.tensorflow:tensorflow-lite-task-vision-play-services:0.4.2")
-    implementation("com.google.android.gms:play-services-tflite-support:16.1.0")
-    implementation("com.google.android.gms:play-services-tflite-gpu:16.2.0")
-    implementation("org.tensorflow:tensorflow-lite-gpu:2.9.0")
 }
