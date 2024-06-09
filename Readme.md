@@ -14,7 +14,8 @@ TOKEN_BLYNK = [YOUR_BLYNK_TOKEN]\
 TOKEN_READER = [YOUR_LICENSE_PLATE_RECOGNIZER_TOKEN]
 
 ## IoT Device
-![WhatsApp Image 2024-06-09 at 21 24 30](https://github.com/KahilAkbr/Automatic-Gate-System/assets/108219818/8e49bd91-57eb-4e4c-a6e6-1969631d5d00)
+![WhatsApp Image 2024-06-08 at 12 09 53](https://github.com/KahilAkbr/Automatic-Gate-System/assets/108219818/3b20a82f-bd54-4a2b-9c5c-7833b61aef5b)
+
 
 ## APP Interface
 ![WhatsApp Image 2024-06-09 at 05 31 37](https://github.com/KahilAkbr/Automatic-Gate-System/assets/108219818/0f2bc304-4f4d-4b4c-bce0-70241e3795b1)
