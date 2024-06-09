@@ -105,9 +105,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun databaseListener() {
-        if (isWaiting) {
-            return
-        }
         database = FirebaseDatabase.getInstance().getReference("Sensor")
         val distanceListener = object : ValueEventListener {
             @RequiresApi(Build.VERSION_CODES.Q)
@@ -115,8 +112,18 @@ class MainActivity : AppCompatActivity() {
                 val distance = snapshot.child("distance").value
                 val distanceInt = distance.toString().toDouble().toInt()
                 binding.tvDistance.text = "$distanceInt cm"
-                if(distance.toString().toDouble() < 100) {
-                    startCameraX()
+                if (isWaiting) {
+                    return
+                }
+                if(distance.toString().toDouble() < 10) {
+                    isWaiting = true
+                    if (allPermissionsGranted()) {
+                        startCameraX()
+                    } else {
+                        requestPermissionLauncher.launch(REQUIRED_PERMISSION)
+                    }
+                }else{
+                    isWaiting = false
                 }
             }
 
@@ -262,9 +269,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPlateNumber(result: LicensePlateResponse) {
-        if (isWaiting) {
-            return
-        }
         var plateFound = false
         result.results.forEach { resultItem ->
             val detectedPlate = resultItem.plate.toUpperCase(Locale.ROOT)
@@ -273,17 +277,17 @@ class MainActivity : AppCompatActivity() {
                 Log.d("PlateNumber", "Plate number found in the registered plates list.")
                 plateFound = true
 
-                greenLEDListener(1)
-                servoListener(90)
-
-                isWaiting = true
-
-                Handler(Looper.getMainLooper()).postDelayed({
-                    greenLEDListener(0)
-                    servoListener(180)
-
-                    isWaiting = false
-                }, 5000)
+                greenLEDListener(1) {
+                    servoListener(90) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            greenLEDListener(0) {
+                                servoListener(180) {
+                                    isWaiting = false
+                                }
+                            }
+                        }, 5000)
+                    }
+                }
             }
         }
 
@@ -293,13 +297,13 @@ class MainActivity : AppCompatActivity() {
             showAlertDialog("Plate Number Not Found")
             Log.d("PlateNumber", "Plate number not found.")
 
-            redLEDListener(1)
-            isWaiting = true
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                redLEDListener(0)
-                isWaiting = false
-            }, 5000)
+            redLEDListener(1) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    redLEDListener(0) {
+                        isWaiting = false
+                    }
+                }, 5000)
+            }
         }
     }
 
@@ -329,55 +333,59 @@ class MainActivity : AppCompatActivity() {
         val dialog = builder.create()
         dialog.show()
 
-        isWaiting = true
-
         Handler(Looper.getMainLooper()).postDelayed({
             dialog.dismiss()
-            isWaiting = false
-        }, 5000)
+        }, 2000)
     }
 
-    private fun servoListener(value : Int){ // 180 close, 90 open
-        val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, value)
-        client.enqueue(object : Callback<Void> {
-            override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                Log.d("Testt", "Berhasil")
-                Log.d("Testt", "Respons: ${response.toString()}")
-            }
-
-            override fun onFailure(call: Call<Void>, t: Throwable) {
-                // Tangani kesalahan di sini
-            }
-        })
-    }
-
-    private fun greenLEDListener(value : Int){ // 1 on, 0 off
+    private fun greenLEDListener(value: Int, onComplete: () -> Unit) {
         val client = ApiConfig.getApiSevice().greenLEDListener(tokenBlynk, value)
         client.enqueue(object : Callback<Void> {
             override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                Log.d("Testt", "Berhasil")
-                Log.d("Testt", "Respons: ${response}")
+                if (response.isSuccessful) {
+                    onComplete()
+                    Log.d("Testt", "Green LED updated successfully")
+                }
             }
 
             override fun onFailure(call: Call<Void>, t: Throwable) {
-                Log.e("Testt", "Gagal: ${t.message}")
+                Log.e("Testt", "Failed to update red LED: ${t.message}")
             }
         })
     }
 
-    private fun redLEDListener(value : Int){ // 1 on, 0 off
+    private fun redLEDListener(value: Int, onComplete: () -> Unit) {
         val client = ApiConfig.getApiSevice().redLEDListener(tokenBlynk, value)
         client.enqueue(object : Callback<Void> {
             override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                Log.d("Testt", "Berhasil")
-                Log.d("Testt", "Respons: ${response}")
+                if (response.isSuccessful) {
+                    onComplete()
+                    Log.d("Testt", "Red LED updated successfully")
+                }
             }
 
             override fun onFailure(call: Call<Void>, t: Throwable) {
-                Log.e("Testt", "Gagal: ${t.message}")
+                Log.e("Testt", "Failed to update red LED: ${t.message}")
             }
         })
     }
+
+    private fun servoListener(value: Int, onComplete: () -> Unit) {
+        val client = ApiConfig.getApiSevice().servoListener(tokenBlynk, value)
+        client.enqueue(object : Callback<Void> {
+            override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                if (response.isSuccessful) {
+                    onComplete()
+                    Log.d("Testt", "Servo updated successfully")
+                }
+            }
+
+            override fun onFailure(call: Call<Void>, t: Throwable) {
+                Log.e("Testt", "Failed to update servo: ${t.message}")
+            }
+        })
+    }
+
 
     companion object {
         private const val TAG = "Testt"
