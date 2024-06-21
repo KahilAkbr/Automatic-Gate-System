@@ -4,7 +4,6 @@ Android Application for Automatic gate system simulation using license plate det
 ## Tech Used
 - Firebase Realtime Database : Used for listen to ultrasonic sensor and adding registered license plate
 - Blynk API : Used for communicate between android app and IoT devices
-- License Plate Recognizer API : Used for recognizing license plate number from image sent (https://guides.platerecognizer.com/docs/snapshot/api-reference/)
 
 ## How to Use
 in local.properties\
